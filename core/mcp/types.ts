@@ -235,6 +235,11 @@ export type StoredMCPServer = MCPServerConfig & {
   oauth?: {
     clientId?: string;
     clientSecret?: string;
+    /**
+     * EMA leg 3 `private_key_jwt` key — PKCS#8 PEM or private JWK (JSON). A
+     * secret like `clientSecret`: lifted into the keychain, never on disk.
+     */
+    clientPrivateKey?: string;
     scopes?: string;
     /** When true, connect via enterprise IdP (EMA) instead of standard resource OAuth. */
     enterpriseManaged?: boolean;
@@ -708,6 +713,8 @@ export interface InspectorRequestHistoryItem {
 export interface OAuthSettings {
   clientId: string;
   clientSecret: string;
+  /** EMA leg 3 `private_key_jwt` key; optional so existing callers compile. */
+  clientPrivateKey?: string;
   scopes: string;
   /**
    * Custom authorization-request parameters as controlled key/value rows.
@@ -927,6 +934,8 @@ export interface InspectorServerSettings {
   taskTtl: number;
   oauthClientId?: string;
   oauthClientSecret?: string;
+  /** Flat form of `oauth.clientPrivateKey` (EMA leg 3 `private_key_jwt`). */
+  oauthClientPrivateKey?: string;
   oauthScopes?: string;
   /**
    * Custom authorization-request parameters, edited as controlled key/value
@@ -1497,6 +1506,8 @@ export interface InspectorClientOptions {
   oauth?: {
     clientId?: string;
     clientSecret?: string;
+    /** EMA leg 3 `private_key_jwt` key (PKCS#8 PEM or private JWK JSON). */
+    clientPrivateKey?: string;
     clientMetadataUrl?: string;
     scope?: string;
     /** Route to EMA flow when true (resource AS creds in clientId/clientSecret). */

@@ -456,6 +456,9 @@ export function useConnectionLifecycle({
               ...(savedSettings.oauthClientSecret && {
                 clientSecret: savedSettings.oauthClientSecret,
               }),
+              ...(savedSettings.oauthClientPrivateKey && {
+                clientPrivateKey: savedSettings.oauthClientPrivateKey,
+              }),
               ...(savedSettings.oauthScopes && {
                 scope: savedSettings.oauthScopes,
               }),

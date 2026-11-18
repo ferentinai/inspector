@@ -9,6 +9,7 @@ import { GRANT_TYPE_JWT_BEARER } from "./constants.js";
 import { parseHttpUrl } from "../utils.js";
 import { discoverResourceAsMetadata } from "./resourceContext.js";
 import { normalizeIdpIssuer } from "./storage.js";
+import { buildClientAssertionParams } from "./clientAssertion.js";
 import {
   parseOAuthTokenErrorResponse,
   postOAuthTokenRequest,
@@ -74,12 +75,22 @@ export async function exchangeIdJag(params: {
   return result.jwtAuthGrant;
 }
 
-/** Leg 3 — redeem ID-JAG for MCP resource access token (RFC 7523). */
+/**
+ * Leg 3 — redeem ID-JAG for MCP resource access token (RFC 7523).
+ *
+ * Client authentication, strongest configured method first:
+ * `resourceClientPrivateKey` → `private_key_jwt` (see `clientAssertion.ts`),
+ * else `resourceClientSecret` → `client_secret_post`, else `none`. A key wins
+ * over a secret when both are set, because a server that registered the key
+ * is the one that asked for it.
+ */
 export async function redeemIdJagForAccessToken(params: {
   resourceAsUrl: URL;
   idJag: string;
   resourceClientId: string;
   resourceClientSecret?: string;
+  /** PKCS#8 PEM or private JWK (JSON); selects `private_key_jwt`. */
+  resourceClientPrivateKey?: string;
   resource?: string;
   scope?: string;
   fetchFn?: typeof fetch;
@@ -92,20 +103,39 @@ export async function redeemIdJagForAccessToken(params: {
     throw new Error("Resource AS metadata missing token_endpoint");
   }
 
-  const clientInformation = {
-    client_id: params.resourceClientId,
-    ...(params.resourceClientSecret && {
-      client_secret: params.resourceClientSecret,
-    }),
-    token_endpoint_auth_method: params.resourceClientSecret
-      ? "client_secret_post"
-      : "none",
-  } as OAuthClientInformation;
+  const privateKey = params.resourceClientPrivateKey?.trim();
+  // With a key, no secret is sent even if one is configured: the assertion is
+  // the client authentication, and a second method on one request is refused
+  // by RFC 6749 §2.3. `applyClientAuth` then adds only `client_id`.
+  const clientInformation = (
+    privateKey
+      ? {
+          client_id: params.resourceClientId,
+          token_endpoint_auth_method: "private_key_jwt",
+        }
+      : {
+          client_id: params.resourceClientId,
+          ...(params.resourceClientSecret && {
+            client_secret: params.resourceClientSecret,
+          }),
+          token_endpoint_auth_method: params.resourceClientSecret
+            ? "client_secret_post"
+            : "none",
+        }
+  ) as OAuthClientInformation;
 
   const body = new URLSearchParams({
     grant_type: GRANT_TYPE_JWT_BEARER,
     assertion: params.idJag,
   });
+  if (privateKey) {
+    const assertionParams = await buildClientAssertionParams({
+      clientId: params.resourceClientId,
+      privateKey,
+      tokenEndpoint: asMetadata.token_endpoint,
+    });
+    for (const [k, v] of assertionParams) body.set(k, v);
+  }
   if (params.scope) {
     body.set("scope", params.scope);
   }

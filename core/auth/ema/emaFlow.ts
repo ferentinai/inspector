@@ -18,6 +18,8 @@ export interface EmaFlowConfig {
   idp: EnterpriseManagedAuthIdpConfig;
   resourceClientId?: string;
   resourceClientSecret?: string;
+  /** PKCS#8 PEM or private JWK (JSON); leg 3 then uses `private_key_jwt`. */
+  resourceClientPrivateKey?: string;
   scope?: string;
   redirectUrl: string;
   storage: OAuthStorage;
@@ -96,6 +98,7 @@ export async function mintEmaResourceTokens(
     idJag,
     resourceClientId: config.resourceClientId,
     resourceClientSecret: config.resourceClientSecret,
+    resourceClientPrivateKey: config.resourceClientPrivateKey,
     resource: ctx.resourceUrl?.href,
     scope: ctx.scope,
     fetchFn: config.fetchFn,

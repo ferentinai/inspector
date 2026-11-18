@@ -114,6 +114,7 @@ import {
 import { formatClientConfigLoadError } from "../../../client/config-parse.js";
 import {
   envSecretField,
+  SECRET_FIELD_OAUTH_CLIENT_PRIVATE_KEY,
   SECRET_FIELD_OAUTH_CLIENT_SECRET,
 } from "../../../auth/secret-fields.js";
 import type { SecretStorageInfo } from "../../../auth/secret-storage-info.js";
@@ -1928,6 +1929,7 @@ export function createRemoteApp(
   ): v is {
     clientId?: string;
     clientSecret?: string;
+    clientPrivateKey?: string;
     scopes?: string;
     authorizationParams?: Record<string, string>;
     authorizationUrl?: string;
@@ -1942,6 +1944,7 @@ export function createRemoteApp(
     for (const k of [
       "clientId",
       "clientSecret",
+      "clientPrivateKey",
       "scopes",
       // #1906 — shape only; the values are validated as absolute http(s) URLs
       // where they're applied (core/auth/endpointOverrides.ts), so a typo drops
@@ -2121,7 +2124,7 @@ export function createRemoteApp(
       if ("oauth" in valObj && !isOauthObject(valObj.oauth)) {
         logWarn(
           { route: "/api/servers", id, droppedKey: "oauth" },
-          "Dropping malformed `oauth` field — expected `{ clientId?, clientSecret?, scopes?, authorizationParams?, authorizationUrl?, tokenUrl?, enterpriseManaged?, onInsufficientScope?, requestRefreshToken?, scopeOnRefresh?, revokeOnClear? }`.",
+          "Dropping malformed `oauth` field — expected `{ clientId?, clientSecret?, clientPrivateKey?, scopes?, authorizationParams?, authorizationUrl?, tokenUrl?, enterpriseManaged?, onInsufficientScope?, requestRefreshToken?, scopeOnRefresh?, revokeOnClear? }`.",
         );
         delete valObj.oauth;
       }
@@ -2422,6 +2425,7 @@ export function createRemoteApp(
     for (const optional of [
       "oauthClientId",
       "oauthClientSecret",
+      "oauthClientPrivateKey",
       "oauthScopes",
       // #1906 — string-shaped on the wire; URL validity is checked where the
       // override is applied, not here.
@@ -2595,6 +2599,12 @@ export function createRemoteApp(
       obj.oauthClientSecret !== ""
     ) {
       value.oauthClientSecret = obj.oauthClientSecret;
+    }
+    if (
+      typeof obj.oauthClientPrivateKey === "string" &&
+      obj.oauthClientPrivateKey !== ""
+    ) {
+      value.oauthClientPrivateKey = obj.oauthClientPrivateKey;
     }
     if (typeof obj.oauthScopes === "string" && obj.oauthScopes !== "") {
       value.oauthScopes = obj.oauthScopes;
@@ -3561,7 +3571,8 @@ export function createRemoteApp(
           const previousFields = new Set(expectedSecretFields(existing));
           const stillExpected = new Set(expectedSecretFields(built));
           const obsolete = [...previousFields].filter((field) =>
-            field === SECRET_FIELD_OAUTH_CLIENT_SECRET
+            field === SECRET_FIELD_OAUTH_CLIENT_SECRET ||
+            field === SECRET_FIELD_OAUTH_CLIENT_PRIVATE_KEY
               ? settingsIntent.kind !== "preserve" && !(field in secrets)
               : !stillExpected.has(field),
           );

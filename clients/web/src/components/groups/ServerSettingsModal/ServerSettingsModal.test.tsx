@@ -589,6 +589,7 @@ describe("ServerSettingsModal", () => {
       ...emptySettings,
       oauthClientId: "",
       oauthClientSecret: "",
+      oauthClientPrivateKey: "",
       oauthScopes: "",
       oauthAuthorizationParams: [],
       enterpriseManaged: true,

@@ -981,6 +981,7 @@ describe("ServerSettingsForm", () => {
     expect(onOAuthChange).toHaveBeenCalledWith({
       clientId: "a",
       clientSecret: "",
+      clientPrivateKey: "",
       scopes: "",
       authorizationParams: [],
       authorizationUrl: "",
@@ -1615,6 +1616,7 @@ describe("ServerSettingsForm", () => {
     expect(onOAuthChange).toHaveBeenCalledWith({
       clientId: "",
       clientSecret: "",
+      clientPrivateKey: "",
       scopes: "",
       authorizationParams: [],
       authorizationUrl: "",
@@ -1778,6 +1780,7 @@ describe("ServerSettingsForm", () => {
     expect(onOAuthChange).toHaveBeenCalledWith({
       clientId: "",
       clientSecret: "z",
+      clientPrivateKey: "",
       scopes: "",
       authorizationParams: [],
       authorizationUrl: "",
@@ -1787,6 +1790,69 @@ describe("ServerSettingsForm", () => {
       scopeOnRefresh: false,
       revokeOnClear: true,
     });
+  });
+
+  it("hides the resource AS private key field unless EMA is on", () => {
+    renderWithMantine(
+      <ServerSettingsForm
+        {...baseHandlers}
+        settings={emptySettings}
+        expandedSections={["oauth"]}
+      />,
+    );
+    expect(
+      screen.queryByLabelText("Resource AS Client Private Key"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("invokes onOAuthChange when typing a resource AS private key under EMA", async () => {
+    const user = userEvent.setup();
+    const onOAuthChange = vi.fn();
+    renderWithMantine(
+      <ServerSettingsForm
+        {...baseHandlers}
+        onOAuthChange={onOAuthChange}
+        settings={{ ...emptySettings, enterpriseManaged: true }}
+        expandedSections={["oauth"]}
+      />,
+    );
+    await user.type(
+      screen.getByLabelText("Resource AS Client Private Key"),
+      "k",
+    );
+    expect(onOAuthChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientPrivateKey: "k",
+        enterpriseManaged: true,
+      }),
+    );
+  });
+
+  it("clears the resource AS private key", async () => {
+    const user = userEvent.setup();
+    const onOAuthChange = vi.fn();
+    renderWithMantine(
+      <ServerSettingsForm
+        {...baseHandlers}
+        onOAuthChange={onOAuthChange}
+        settings={{
+          ...emptySettings,
+          enterpriseManaged: true,
+          oauthClientPrivateKey: "pem-material",
+        }}
+        expandedSections={["oauth"]}
+      />,
+    );
+    const keyInput = screen.getByLabelText("Resource AS Client Private Key");
+    const wrapper = keyInput.closest("[class*='InputWrapper-root']");
+    const clear = screen
+      .getAllByRole("button", { name: "Clear" })
+      .find((b) => wrapper?.contains(b));
+    expect(clear).toBeDefined();
+    await user.click(clear!);
+    expect(onOAuthChange).toHaveBeenCalledWith(
+      expect.objectContaining({ clientPrivateKey: "" }),
+    );
   });
 
   it("shows the empty hint for roots when none are configured", () => {

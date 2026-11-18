@@ -186,6 +186,7 @@ export function ServerSettingsModal({
       ...settings,
       oauthClientId: oauth.clientId,
       oauthClientSecret: oauth.clientSecret,
+      oauthClientPrivateKey: oauth.clientPrivateKey,
       oauthScopes: oauth.scopes,
       // #2018: kept as rows (blank ones included) so a half-typed parameter
       // survives a re-render; the drop-blank/omit-empty filtering happens on the

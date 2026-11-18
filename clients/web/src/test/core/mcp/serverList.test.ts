@@ -28,6 +28,7 @@ import type {
   MCPServerConfig,
 } from "@inspector/core/mcp/types.js";
 import {
+  SECRET_FIELD_OAUTH_CLIENT_PRIVATE_KEY,
   SECRET_FIELD_OAUTH_CLIENT_SECRET,
   envSecretField,
 } from "@inspector/core/auth/secret-fields.js";
@@ -1163,6 +1164,43 @@ describe("extractSecretsFromStored", () => {
     });
   });
 
+  it("lifts oauth.clientPrivateKey into the keychain and never leaves it on disk", () => {
+    const { stripped, secrets } = extractSecretsFromStored({
+      type: "streamable-http",
+      url: "https://x.test",
+      oauth: {
+        clientId: "resource-as",
+        clientPrivateKey: "pem-material",
+        enterpriseManaged: true,
+      },
+    });
+    expect(secrets).toEqual({
+      [SECRET_FIELD_OAUTH_CLIENT_PRIVATE_KEY]: "pem-material",
+    });
+    expect(stripped.oauth).toEqual({
+      clientId: "resource-as",
+      enterpriseManaged: true,
+    });
+    expect(mergeSecretsIntoStored(stripped, secrets).oauth).toEqual({
+      clientId: "resource-as",
+      clientPrivateKey: "pem-material",
+      enterpriseManaged: true,
+    });
+  });
+
+  it("lifts both a secret and a private key, dropping an emptied oauth block", () => {
+    const { stripped, secrets } = extractSecretsFromStored({
+      type: "streamable-http",
+      url: "https://x.test",
+      oauth: { clientSecret: "shh", clientPrivateKey: "pem-material" },
+    });
+    expect(secrets).toEqual({
+      [SECRET_FIELD_OAUTH_CLIENT_SECRET]: "shh",
+      [SECRET_FIELD_OAUTH_CLIENT_PRIVATE_KEY]: "pem-material",
+    });
+    expect(stripped).not.toHaveProperty("oauth");
+  });
+
   it("preserves oauth.enterpriseManaged when lifting clientSecret to keychain", () => {
     const stored: StoredMCPServer = {
       type: "streamable-http",
@@ -1367,6 +1405,7 @@ describe("expectedSecretFields", () => {
     });
     expect(fields).toEqual([
       SECRET_FIELD_OAUTH_CLIENT_SECRET,
+      SECRET_FIELD_OAUTH_CLIENT_PRIVATE_KEY,
       envSecretField("A"),
       envSecretField("B"),
     ]);
@@ -1378,7 +1417,10 @@ describe("expectedSecretFields", () => {
         type: "stdio",
         command: "node",
       }),
-    ).toEqual([SECRET_FIELD_OAUTH_CLIENT_SECRET]);
+    ).toEqual([
+      SECRET_FIELD_OAUTH_CLIENT_SECRET,
+      SECRET_FIELD_OAUTH_CLIENT_PRIVATE_KEY,
+    ]);
   });
 
   it("keeps a secret-only OAuth config reachable across the disk round trip", () => {
@@ -1422,6 +1464,27 @@ describe("enterpriseManaged oauth settings", () => {
     });
     expect(settings?.enterpriseManaged).toBe(true);
     expect(settings?.oauthClientId).toBe("resource-as");
+  });
+
+  it("round-trips the EMA leg-3 private key between settings and disk shape", () => {
+    const stored = inspectorSettingsToStoredFields({
+      headers: [],
+      env: [],
+      metadata: {},
+      connectionTimeout: 0,
+      requestTimeout: 0,
+      taskTtl: 60000,
+      maxFetchRequests: 1000,
+      roots: [],
+      oauthClientId: "resource-as",
+      oauthClientPrivateKey: "pem-material",
+      enterpriseManaged: true,
+    });
+    expect(stored.oauth?.clientPrivateKey).toBe("pem-material");
+    expect(
+      storedFieldsToInspectorSettings({ oauth: stored.oauth })
+        ?.oauthClientPrivateKey,
+    ).toBe("pem-material");
   });
 
   it("persists enterpriseManaged under oauth on disk", () => {

@@ -619,6 +619,7 @@ export function ServerSettingsForm({
     return {
       clientId: settings.oauthClientId ?? "",
       clientSecret: settings.oauthClientSecret ?? "",
+      clientPrivateKey: settings.oauthClientPrivateKey ?? "",
       scopes: settings.oauthScopes ?? "",
       authorizationParams,
       authorizationUrl: settings.oauthAuthorizationUrl ?? "",
@@ -1057,6 +1058,32 @@ export function ServerSettingsForm({
                   ) : null
                 }
               />
+              {enterpriseManaged ? (
+                <ClearableTextInput
+                  label="Resource AS Client Private Key"
+                  description="For a resource AS that requires private_key_jwt: a PKCS#8 PEM or a private JWK (JSON). When set, leg 3 signs a client assertion with it (aud = the token endpoint) and the client secret is not sent. Stored in the OS keychain."
+                  value={settings.oauthClientPrivateKey ?? ""}
+                  type="password"
+                  onChange={(e) =>
+                    onOAuthChange({
+                      ...currentOAuth(),
+                      clientPrivateKey: e.currentTarget.value,
+                    })
+                  }
+                  rightSection={
+                    settings.oauthClientPrivateKey ? (
+                      <ClearButton
+                        onClick={() =>
+                          onOAuthChange({
+                            ...currentOAuth(),
+                            clientPrivateKey: "",
+                          })
+                        }
+                      />
+                    ) : null
+                  }
+                />
+              ) : null}
               <RedirectUriInput
                 label="Redirect URI"
                 description={redirectUriDescription}

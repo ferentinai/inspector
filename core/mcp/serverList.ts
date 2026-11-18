@@ -33,6 +33,7 @@ import type {
   StoredMCPServer,
 } from "./types.js";
 import {
+  SECRET_FIELD_OAUTH_CLIENT_PRIVATE_KEY,
   SECRET_FIELD_OAUTH_CLIENT_SECRET,
   envSecretField,
 } from "../auth/secret-fields.js";
@@ -650,6 +651,8 @@ export function storedFieldsToInspectorSettings(
   if (stored.oauth?.clientId) settings.oauthClientId = stored.oauth.clientId;
   if (stored.oauth?.clientSecret)
     settings.oauthClientSecret = stored.oauth.clientSecret;
+  if (stored.oauth?.clientPrivateKey)
+    settings.oauthClientPrivateKey = stored.oauth.clientPrivateKey;
   if (stored.oauth?.scopes) settings.oauthScopes = stored.oauth.scopes;
   // Optional record with no default; carried through only when the file has a
   // non-empty object, so an absent/empty field reads back as unset and the
@@ -846,6 +849,8 @@ export function inspectorSettingsToStoredFields(
   if (settings.oauthClientId) oauthFields.clientId = settings.oauthClientId;
   if (settings.oauthClientSecret)
     oauthFields.clientSecret = settings.oauthClientSecret;
+  if (settings.oauthClientPrivateKey)
+    oauthFields.clientPrivateKey = settings.oauthClientPrivateKey;
   if (settings.oauthScopes) oauthFields.scopes = settings.oauthScopes;
   // Blank-key rows (a row the user added but never filled in) are dropped, so
   // an all-blank list writes nothing — matching the read side's omit-on-empty.
@@ -1087,15 +1092,25 @@ export function extractSecretsFromStored(
   const secrets: Record<string, string> = {};
   const stripped: StoredMCPServer = { ...stored };
 
-  if (stored.oauth?.clientSecret) {
-    secrets[SECRET_FIELD_OAUTH_CLIENT_SECRET] = stored.oauth.clientSecret;
+  if (stored.oauth?.clientSecret || stored.oauth?.clientPrivateKey) {
+    if (stored.oauth.clientSecret) {
+      secrets[SECRET_FIELD_OAUTH_CLIENT_SECRET] = stored.oauth.clientSecret;
+    }
+    if (stored.oauth.clientPrivateKey) {
+      secrets[SECRET_FIELD_OAUTH_CLIENT_PRIVATE_KEY] =
+        stored.oauth.clientPrivateKey;
+    }
     // Keep every OAuth field except the one secret, rather than enumerating the
     // non-secret ones. An allow-list here is a standing trap: it silently drops
     // any field added to `oauth` afterwards, and it had already done so —
     // `onInsufficientScope` was lost whenever a server carried both a client
     // secret and a non-default SEP-2350 policy. Subtracting the secret instead
     // means a future field is preserved by construction. (#2018)
-    const { clientSecret: _clientSecret, ...restOauth } = stored.oauth;
+    const {
+      clientSecret: _clientSecret,
+      clientPrivateKey: _clientPrivateKey,
+      ...restOauth
+    } = stored.oauth;
     if (Object.keys(restOauth).length > 0) {
       stripped.oauth = restOauth;
     } else {
@@ -1140,6 +1155,10 @@ export function mergeSecretsIntoStored(
   if (oauthSecret) {
     out.oauth = { ...(out.oauth ?? {}), clientSecret: oauthSecret };
   }
+  const oauthPrivateKey = secrets[SECRET_FIELD_OAUTH_CLIENT_PRIVATE_KEY];
+  if (oauthPrivateKey) {
+    out.oauth = { ...(out.oauth ?? {}), clientPrivateKey: oauthPrivateKey };
+  }
 
   if (isStdioStored(out) && out.env) {
     const newEnv: Record<string, string> = { ...out.env };
@@ -1176,6 +1195,7 @@ export function expectedSecretFields(stored: StoredMCPServer): string[] {
   // on disk, the keychain may hold a leftover entry from a prior
   // configuration that we want callers to be able to reconcile.
   fields.push(SECRET_FIELD_OAUTH_CLIENT_SECRET);
+  fields.push(SECRET_FIELD_OAUTH_CLIENT_PRIVATE_KEY);
   if (isStdioStored(stored) && stored.env) {
     for (const k of Object.keys(stored.env)) {
       fields.push(envSecretField(k));

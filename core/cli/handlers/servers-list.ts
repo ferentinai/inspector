@@ -192,6 +192,9 @@ export function sanitizeServerSettings(
   if (settings.oauthClientSecret !== undefined) {
     out.oauthClientSecret = REDACTED;
   }
+  if (settings.oauthClientPrivateKey !== undefined) {
+    out.oauthClientPrivateKey = REDACTED;
+  }
   return out;
 }
 

@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { exportPKCS8, generateKeyPair, jwtVerify } from "jose";
+import { CLIENT_ASSERTION_TYPE_JWT_BEARER } from "@inspector/core/auth/ema/clientAssertion.js";
 import {
   exchangeIdJag,
   redeemIdJagForAccessToken,
@@ -305,6 +307,77 @@ describe("ema wire", () => {
       });
 
       expect(tokens.access_token).toBe(ACCESS_TOKEN);
+    });
+
+    it("authenticates with private_key_jwt and sends no secret when a key is set", async () => {
+      const { privateKey, publicKey } = await generateKeyPair("ES256", {
+        extractable: true,
+      });
+      let sentBody: URLSearchParams | undefined;
+      const fetchFn = vi.fn(
+        async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = String(input);
+          if (url.includes("/.well-known/oauth-authorization-server")) {
+            return new Response(JSON.stringify(asMetadata()));
+          }
+          if (url === `${AS_ISSUER}/token`) {
+            sentBody = new URLSearchParams(init?.body as string);
+            return new Response(
+              JSON.stringify({
+                access_token: ACCESS_TOKEN,
+                token_type: "Bearer",
+              }),
+            );
+          }
+          throw new Error(`unexpected fetch: ${url}`);
+        },
+      );
+
+      const tokens = await redeemIdJagForAccessToken({
+        resourceAsUrl: new URL(AS_ISSUER),
+        idJag: ID_JAG,
+        resourceClientId: EMA_MOCK_RESOURCE_CLIENT_ID,
+        // Both configured: the key wins and the secret must not be sent.
+        resourceClientSecret: EMA_MOCK_RESOURCE_CLIENT_SECRET,
+        resourceClientPrivateKey: await exportPKCS8(privateKey),
+        resource: MCP_RESOURCE,
+        scope: "mcp",
+        fetchFn,
+      });
+
+      expect(tokens.access_token).toBe(ACCESS_TOKEN);
+      expect(sentBody?.get("grant_type")).toBe(GRANT_TYPE_JWT_BEARER);
+      expect(sentBody?.get("assertion")).toBe(ID_JAG);
+      expect(sentBody?.get("client_id")).toBe(EMA_MOCK_RESOURCE_CLIENT_ID);
+      expect(sentBody?.get("client_secret")).toBeNull();
+      expect(sentBody?.get("client_assertion_type")).toBe(
+        CLIENT_ASSERTION_TYPE_JWT_BEARER,
+      );
+      await jwtVerify(sentBody!.get("client_assertion")!, publicKey, {
+        issuer: EMA_MOCK_RESOURCE_CLIENT_ID,
+        subject: EMA_MOCK_RESOURCE_CLIENT_ID,
+        audience: `${AS_ISSUER}/token`,
+      });
+    });
+
+    it("fails before sending when the configured key is unusable", async () => {
+      const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/.well-known/oauth-authorization-server")) {
+          return new Response(JSON.stringify(asMetadata()));
+        }
+        throw new Error(`unexpected fetch: ${url}`);
+      });
+
+      await expect(
+        redeemIdJagForAccessToken({
+          resourceAsUrl: new URL(AS_ISSUER),
+          idJag: ID_JAG,
+          resourceClientId: EMA_MOCK_RESOURCE_CLIENT_ID,
+          resourceClientPrivateKey: "not-a-key",
+          fetchFn,
+        }),
+      ).rejects.toThrow(/PKCS#8 PEM or a private JWK/);
     });
 
     it("throws when the resource AS JWT bearer grant fails", async () => {

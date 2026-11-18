@@ -132,6 +132,7 @@ const loadKeyring = (): Promise<KeyringLoad> => {
 };
 
 export {
+  SECRET_FIELD_OAUTH_CLIENT_PRIVATE_KEY,
   SECRET_FIELD_OAUTH_CLIENT_SECRET,
   SECRET_FIELD_IDP_CLIENT_SECRET,
   envSecretField,

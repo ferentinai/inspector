@@ -97,6 +97,9 @@ export function buildRunnerClientAuthOptions(
           ...(savedSettings.oauthClientSecret && {
             clientSecret: savedSettings.oauthClientSecret,
           }),
+          ...(savedSettings.oauthClientPrivateKey && {
+            clientPrivateKey: savedSettings.oauthClientPrivateKey,
+          }),
           ...(savedSettings.oauthScopes && {
             scope: savedSettings.oauthScopes,
           }),

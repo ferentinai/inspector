@@ -109,6 +109,8 @@ export class OAuthManager {
   setOAuthConfig(config: {
     clientId?: string;
     clientSecret?: string;
+    /** EMA leg 3 `private_key_jwt` key (PKCS#8 PEM or private JWK JSON). */
+    clientPrivateKey?: string;
     clientMetadataUrl?: string;
     scope?: string;
     enterpriseManaged?: boolean;
@@ -253,6 +255,7 @@ export class OAuthManager {
       idp,
       resourceClientId: this.oauthConfig.clientId,
       resourceClientSecret: this.oauthConfig.clientSecret,
+      resourceClientPrivateKey: this.oauthConfig.clientPrivateKey,
       scope:
         computeScopeUnion(this.oauthConfig.scope, storedScope) ||
         this.oauthConfig.scope,

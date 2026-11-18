@@ -6235,6 +6235,8 @@ export class InspectorClient extends InspectorClientEventTarget {
   setOAuthConfig(config: {
     clientId?: string;
     clientSecret?: string;
+    /** EMA leg 3 `private_key_jwt` key (PKCS#8 PEM or private JWK JSON). */
+    clientPrivateKey?: string;
     clientMetadataUrl?: string;
     scope?: string;
     /** Custom authorization-request parameters (#2018). Authorize URL only. */

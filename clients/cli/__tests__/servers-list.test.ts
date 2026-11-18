@@ -280,10 +280,12 @@ describe("showServerEntry / servers/show", () => {
       maxFetchRequests: 100,
       roots: [],
       oauthClientSecret: "shh",
+      oauthClientPrivateKey: "pem-material",
       oauthClientId: "cid",
     };
     const sanitized = sanitizeServerSettings(settings);
     expect(sanitized.oauthClientSecret).toBe("[redacted]");
+    expect(sanitized.oauthClientPrivateKey).toBe("[redacted]");
     expect(sanitized.oauthClientId).toBe("cid");
     expect(sanitized.headers).toEqual([
       { key: "Authorization", value: "[redacted]" },
